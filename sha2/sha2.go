@@ -36,6 +36,22 @@ var k = [64]uint32{
 }
 
 /*
+  the 'choose' logical operation used in sha2-256, the x input 'chooses'
+  betweeh the bits of y or z
+*/
+func ch(x, y, z uint32) uint32 {
+	return (x & y) ^ (bitCompliment32(x) & z)
+}
+
+/*
+  the 'majority' logic operation used in sha2-256, the resulting bits
+  are the majority bits at each index from the three inputs x, y, z
+*/
+func maj(x, y, z uint32) uint32 {
+	return (x & y) ^ (x & z) ^ (y & z)
+}
+
+/*
   a (~) compliment operator for 32 bit unsigned integers used by ch
 */
 func bitCompliment32(x uint32) uint32 {
@@ -114,11 +130,9 @@ func compress(w [64]uint32, hv [8]uint32) [8]uint32 {
 
 	for i := 0; i < 64; i++ {
 		S1 := bits.RotateLeft32(e, -6) ^ bits.RotateLeft32(e, -11) ^ bits.RotateLeft32(e, -25)
-		ch := (e & f) ^ (bitCompliment32(e) & g)
-		t1 := h + S1 + ch + k[i] + w[i]
+		t1 := h + S1 + ch(e, f, g) + k[i] + w[i]
 		S0 := bits.RotateLeft32(a, -2) ^ bits.RotateLeft32(a, -13) ^ bits.RotateLeft32(a, -22)
-		maj := (a & b) ^ (a & c) ^ (b & c)
-		t2 := S0 + maj
+		t2 := S0 + maj(a, b, c)
 
 		h = g
 		g = f
