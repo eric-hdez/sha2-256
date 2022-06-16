@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	blockSize int = 512
+	blockSize int = 64
 	byteSize  int = 8
 	u64Bytes  int = 8
 	u32Bytes  int = 4
@@ -50,35 +50,19 @@ func bitCompliment32(x uint32) uint32 {
   and returns the padded message
 */
 func padMessage(msg []byte) []byte {
-	l := len(msg) * byteSize
+	l := len(msg)
 	msg = append(msg, 0x80)
 
-	z := (blockSize + 448 - (l%blockSize + byteSize)) % blockSize
+	z := (blockSize + 56 - (l%blockSize + 1)) % blockSize
 
-	zeroes := make([]byte, z/byteSize)
+	zeroes := make([]byte, z)
 	msg = append(msg, zeroes...)
 
 	binLen64 := make([]byte, u64Bytes)
-	binary.BigEndian.PutUint64(binLen64, uint64(l))
+	binary.BigEndian.PutUint64(binLen64, uint64(l*byteSize))
 	msg = append(msg, binLen64...)
 
 	return msg
-}
-
-/*
-  splits a padded message into 512 bit blocks (64 bytes) and
-  returns them in a slice of blocks
-*/
-func messageSplitBlocks(msg []byte) [][]byte {
-	var blocks [][]byte
-	byteLen := len(msg)
-
-	for i := 0; i < byteLen; i += blockSize / byteSize {
-		end := i + blockSize/byteSize
-		blocks = append(blocks, msg[i:end])
-	}
-
-	return blocks
 }
 
 /*
@@ -131,29 +115,29 @@ func compress(w [64]uint32, hv [8]uint32) [8]uint32 {
 	for i := 0; i < 64; i++ {
 		S1 := bits.RotateLeft32(e, -6) ^ bits.RotateLeft32(e, -11) ^ bits.RotateLeft32(e, -25)
 		ch := (e & f) ^ (bitCompliment32(e) & g)
-		temp1 := h + S1 + ch + k[i] + w[i]
+		t1 := h + S1 + ch + k[i] + w[i]
 		S0 := bits.RotateLeft32(a, -2) ^ bits.RotateLeft32(a, -13) ^ bits.RotateLeft32(a, -22)
 		maj := (a & b) ^ (a & c) ^ (b & c)
-		temp2 := S0 + maj
+		t2 := S0 + maj
 
 		h = g
 		g = f
 		f = e
-		e = d + temp1
+		e = d + t1
 		d = c
 		c = b
 		b = a
-		a = temp1 + temp2
+		a = t1 + t2
 	}
 
-	hv[0] = hv[0] + a
-	hv[1] = hv[1] + b
-	hv[2] = hv[2] + c
-	hv[3] = hv[3] + d
-	hv[4] = hv[4] + e
-	hv[5] = hv[5] + f
-	hv[6] = hv[6] + g
-	hv[7] = hv[7] + h
+	hv[0] += a
+	hv[1] += b
+	hv[2] += c
+	hv[3] += d
+	hv[4] += e
+	hv[5] += f
+	hv[6] += g
+	hv[7] += h
 
 	return hv
 }
@@ -165,16 +149,15 @@ func compress(w [64]uint32, hv [8]uint32) [8]uint32 {
 */
 func processMessage(msg []byte) [8]uint32 {
 	msg = padMessage(msg)
-	blocks := messageSplitBlocks(msg)
-	numBlocks := len(blocks)
+	byteLen := len(msg)
 
 	hashValues := h
 
-	for i := 0; i < numBlocks; i++ {
-		w := packBlockIntoWords(blocks[i])
+	for i := 0; i < byteLen; i += blockSize {
+		end := i + blockSize
+		w := packBlockIntoWords(msg[i:end])
 		w = extendWords(w)
 		hashValues = compress(w, hashValues)
-
 	}
 
 	return hashValues
