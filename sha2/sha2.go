@@ -114,7 +114,7 @@ func extendWords(w [64]uint32) [64]uint32 {
 }
 
 /*
-  computes the ith block's intermediate hash value susing the i - 1
+  computes the ith block's intermediate hash value using the i - 1
   block's hash values, effectively compressing the block into
   the hash. Returns the ith block's internediate hash values
 */
