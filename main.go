@@ -10,12 +10,12 @@ import (
 )
 
 func main() {
-	message, err := os.ReadFile("loremipsum.txt")
+	msg, err := os.ReadFile("loremipsum.txt")
 	if err != nil {
 		panic(err)
 	}
 
-	message = []byte(message)
+	message := []byte(msg)
 
 	myStart := time.Now()
 	myHash := sha2.Hash256(message)
